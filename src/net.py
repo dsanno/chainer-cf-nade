@@ -17,22 +17,23 @@ class NadeIn(chainer.Chain):
         """
         in_type:
             x1: int32
-            r1: int32
+            r: int32
         in_shape:
             x1: (batch_size, train_item_num)
-            r1: (batch_size, train_item_num)
+            r: (batch_size, train_item_num)
         out_type: float32
         out_shape: (batch_size, hidden_num)
         """
 
         xp = cuda.get_array_module(x1.data)
-        condition = chainer.Variable(x1.data >= 0, volatile=x1.volatile)
-        z = chainer.Variable(xp.zeros_like(x1.data), volatile=x1.volatile)
-        h = F.where(condition, x1, z) * self.rating_num + r
+        h = x1 * self.rating_num + r
+        condition = chainer.Variable(h.data >= 0, volatile=x1.volatile)
+        z = chainer.Variable(xp.full_like(x1.data, -1), volatile=x1.volatile)
+        h = F.where(condition, x1, z)
         h = self.a(h)
         h = F.sum(h, axis=1)
         h = self.b(h)
-        h = F.dropout(h, train=train)
+#        h = F.dropout(h, train=train)
         return F.tanh(h)
 
 class NadeHidden(chainer.Chain):
@@ -52,7 +53,7 @@ class NadeHidden(chainer.Chain):
         out_shape: (batch_size, hidden_num)
         """
         h = self.w(h)
-        h = F.dropout(h, train=train)
+#        h = F.dropout(h, train=train)
         return F.tanh(h)
 
 class NadeOut(chainer.Chain):

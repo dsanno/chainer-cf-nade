@@ -54,10 +54,10 @@ class CfNadeTrainer(object):
                     item_order = np.random.permutation(size)
                     train_num = np.int32(np.floor(np.random.rand() * (size - 1)) + 1)
                     valid_num = size - train_num
-                    batch_x1[j,:train_num] = x[j,item_order[:train_num]]
-                    batch_r1[j,:train_num] = r[j,item_order[:train_num]]
-                    batch_x2[j,:valid_num] = x[j,item_order[train_num:]]
-                    batch_r2[j,:valid_num] = r[j,item_order[train_num:]]
+                    batch_x1[j,:train_num] = x[k,item_order[:train_num]]
+                    batch_r1[j,:train_num] = r[k,item_order[:train_num]]
+                    batch_x2[j,:valid_num] = x[k,item_order[train_num:]]
+                    batch_r2[j,:valid_num] = r[k,item_order[train_num:]]
                     batch_valid_num += valid_num
                 self.net.zerograds()
                 loss, acc = self.__forward(batch_x1[:train_size,:], batch_r1[:train_size,:], batch_x2[:train_size,:], batch_r2[:train_size,:])
@@ -75,8 +75,10 @@ class CfNadeTrainer(object):
         x2 = Variable(xp.asarray(batch_x2), volatile=not train)
         r2 = Variable(xp.asarray(batch_r2), volatile=not train)
         y = self.net(x1, r2, x2, train=train)
-        loss = F.softmax_cross_entropy(y, r2)
+        # set use_cudnn False to avoid 'cupy.cudnn supports c-contiguous arrays only' Error
+        loss = F.softmax_cross_entropy(y, r2, use_cudnn=False)
         acc = self.__accuracy(y, r2)
+#        print float(acc.data), float(F.accuracy(y, r2).data)
         return loss, acc
 
     def __accuracy(self, y, t):

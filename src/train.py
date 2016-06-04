@@ -36,25 +36,29 @@ if __name__ == '__main__':
     optimizer.setup(net)
 
     train_users, train_items, train_ratings, train_timestamps = train_data
-    test_users, test_items, test_ratings, test_timestamps = test_data
 
     column_num = np.max(np.bincount(train_users))
-    train_x = np.full((item_num, column_num), -1, dtype=np.int32)
-    train_r = np.full((item_num, column_num), -1, dtype=np.int32)
+    train_x = np.full((user_num, column_num), -1, dtype=np.int32)
+    train_r = np.full((user_num, column_num), -1, dtype=np.int32)
     for i in six.moves.range(user_num):
         index = (train_users == i)
         length = np.sum(index)
         train_x[i,:length] = train_items[index]
         train_r[i,:length] = train_ratings[index]
 
-    column_num = np.max(np.bincount(test_users))
-    test_x = np.full((item_num, column_num), -1, dtype=np.int32)
-    test_r = np.full((item_num, column_num), -1, dtype=np.int32)
-    for i in six.moves.range(user_num):
-        index = (test_users == i)
-        length = np.sum(index)
-        test_x[i,:length] = test_items[index]
-        test_r[i,:length] = test_ratings[index]
+    if test_data is not None:
+        test_users, test_items, test_ratings, test_timestamps = test_data
+        column_num = np.max(np.bincount(test_users))
+        test_x = np.full((user_num, column_num), -1, dtype=np.int32)
+        test_r = np.full((user_num, column_num), -1, dtype=np.int32)
+        for i in six.moves.range(user_num):
+            index = (test_users == i)
+            length = np.sum(index)
+            test_x[i,:length] = test_items[index]
+            test_r[i,:length] = test_ratings[index]
+    else:
+        test_x = np.zeros((), dtype=np.int32)
+        test_r = np.zeros((), dtype=np.int32)
 
     def progress_func(epoch, loss, accuracy, test_loss, test_accuracy):
         print 'epoch: {} done'.format(epoch)
