@@ -8,16 +8,16 @@ from chainer import initializers as I
 
 class NadeIn(chainer.Chain):
 
-    def __init__(self, item_num, hidden_num, rating_num, encoding_num=None):
+    def __init__(self, item_num, hidden_num, rating_num, encoding_size=-1):
         wscale = np.sqrt(0.1)
-        if encoding_num is None:
+        if encoding_size <= 0:
             super(NadeIn, self).__init__(
                 a=L.Linear(item_num * rating_num, hidden_num, initialW=I.Uniform(0.06), initial_bias=I.Constant(0)),
             )
         else:
             super(NadeIn, self).__init__(
-                a=L.Linear(item_num * rating_num, encoding_num, nobias=True, initialW=I.Uniform(0.06)),
-                b=L.Linear(encoding_num, hidden_num, initialW=I.Uniform(0.06), initial_bias=I.Constant(0)),
+                a=L.Linear(item_num * rating_num, encoding_size, nobias=True, initialW=I.Uniform(0.06)),
+                b=L.Linear(encoding_size, hidden_num, initialW=I.Uniform(0.06), initial_bias=I.Constant(0)),
             )
 
     def __call__(self, x1, train=True):
@@ -60,16 +60,16 @@ class NadeHidden(chainer.Chain):
 
 class NadeOut(chainer.Chain):
 
-    def __init__(self, item_num, hidden_num, rating_num, encoding_num=None):
+    def __init__(self, item_num, hidden_num, rating_num, encoding_size=-1):
         wscale = np.sqrt(0.1)
-        if encoding_num is None:
+        if encoding_size <= 0:
             super(NadeOut, self).__init__(
                 p = L.Linear(hidden_num, rating_num * item_num, initialW=I.Uniform(0.06), initial_bias=I.Constant(0)),
             )
         else:
             super(NadeOut, self).__init__(
-                p = L.Linear(hidden_num, encoding_num, nobias=True, initialW=I.Uniform(0.06)),
-                q = L.Linear(encoding_num, rating_num * item_num, initialW=I.Uniform(0.06), initial_bias=I.Constant(0)),
+                p = L.Linear(hidden_num, encoding_size, nobias=True, initialW=I.Uniform(0.06)),
+                q = L.Linear(encoding_size, rating_num * item_num, initialW=I.Uniform(0.06), initial_bias=I.Constant(0)),
             )
         self.item_num = item_num
         self.rating_num = rating_num
@@ -95,10 +95,10 @@ class NadeOut(chainer.Chain):
 
 class CfNade(chainer.Chain):
 
-    def __init__(self, item_num, layer_num=1, hidden_num=500, rating_num=5, encoding_num=None):
+    def __init__(self, item_num, layer_num=1, hidden_num=500, rating_num=5, encoding_size=-1):
         super(CfNade, self).__init__(
-            l_in=NadeIn(item_num, hidden_num, rating_num, encoding_num),
-            l_out=NadeOut(item_num, hidden_num, rating_num, encoding_num),
+            l_in=NadeIn(item_num, hidden_num, rating_num, encoding_size),
+            l_out=NadeOut(item_num, hidden_num, rating_num, encoding_size),
         )
         self.hidden_links = []
         for i in six.moves.range(layer_num - 1):

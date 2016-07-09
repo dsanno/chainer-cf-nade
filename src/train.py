@@ -20,6 +20,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_file',     '-d', required=True, type=str, help='dataset file path')
     parser.add_argument('--batch_size',    '-b', default=512,   type=int, help='mini batch size')
     parser.add_argument('--layer_num',     '-l', default=1,     type=int, help='number of layers')
+    parser.add_argument('--encoding_size', '-e', default=-1,    type=int, help='size of encoding')
     parser.add_argument('--ordinal_weight',     default=1,     type=float, help='weight of ordinal loss')
     parser.add_argument('--iter',                default=200,   type=int, help='number of iteration')
     parser.add_argument('--save_iter',           default=10,   type=int, help='number of iteration to save model')
@@ -39,7 +40,7 @@ if __name__ == '__main__':
             (item_num, user_num, train_data, test_data) = pickle.load(f)
         else:
             (user_num, item_num, train_data, test_data) = pickle.load(f)
-    net = CfNade(item_num, layer_num=args.layer_num)
+    net = CfNade(item_num, layer_num=args.layer_num, encoding_size=args.encoding_size)
     optimizer = optimizers.Adam(args.lr)
     optimizer.setup(net)
     optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
