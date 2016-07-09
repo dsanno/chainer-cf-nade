@@ -9,7 +9,6 @@ from chainer import initializers as I
 class NadeIn(chainer.Chain):
 
     def __init__(self, item_num, hidden_num, rating_num, encoding_size=-1):
-        wscale = np.sqrt(0.1)
         if encoding_size <= 0:
             super(NadeIn, self).__init__(
                 a=L.Linear(item_num * rating_num, hidden_num, initialW=I.Uniform(0.06), initial_bias=I.Constant(0)),
@@ -61,7 +60,6 @@ class NadeHidden(chainer.Chain):
 class NadeOut(chainer.Chain):
 
     def __init__(self, item_num, hidden_num, rating_num, encoding_size=-1):
-        wscale = np.sqrt(0.1)
         if encoding_size <= 0:
             super(NadeOut, self).__init__(
                 p = L.Linear(hidden_num, rating_num * item_num, initialW=I.Uniform(0.06), initial_bias=I.Constant(0)),
