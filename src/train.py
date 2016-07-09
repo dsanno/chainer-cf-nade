@@ -84,6 +84,15 @@ if __name__ == '__main__':
         train_x[i,:length] = train_items[index]
         train_r[i,:length] = train_ratings[index]
 
+    column_num = np.max(np.bincount(valid_users))
+    valid_x = np.full((user_num, column_num), -1, dtype=np.int32)
+    valid_r = np.full((user_num, column_num), -1, dtype=np.int32)
+    for i in six.moves.range(user_num):
+        index = (valid_users == i)
+        length = np.sum(index)
+        valid_x[i,:length] = valid_items[index]
+        valid_r[i,:length] = valid_ratings[index]
+
     column_num = np.max(np.bincount(test_users))
     test_x = np.full((user_num, column_num), -1, dtype=np.int32)
     test_r = np.full((user_num, column_num), -1, dtype=np.int32)
@@ -93,15 +102,24 @@ if __name__ == '__main__':
         test_x[i,:length] = test_items[index]
         test_r[i,:length] = test_ratings[index]
 
-    def progress_func(epoch, loss, accuracy, test_loss, test_accuracy):
+    progress_state = {'valid_accuracy': 100, 'test_accuracy': 100}
+    def progress_func(epoch, loss, accuracy, valid_loss, valid_accuracy, test_loss, test_accuracy):
         print 'epoch: {} done'.format(epoch)
         print('train mean loss={}, accuracy={}'.format(loss, accuracy))
+        if valid_loss is not None and valid_accuracy is not None:
+            print('valid mean loss={}, accuracy={}'.format(valid_loss, valid_accuracy))
         if test_loss is not None and test_accuracy is not None:
             print('test mean loss={}, accuracy={}'.format(test_loss, test_accuracy))
+        if valid_accuracy < progress_state['valid_accuracy']:
+            serializers.save_npz(args.output, net)
+            progress_state['valid_accuracy'] = valid_accuracy
+            progress_state['test_accuracy'] = test_accuracy
         if epoch % args.save_iter == 0:
             base, ext = os.path.splitext(args.output)
             serializers.save_npz('{0}_{1:04d}{2}'.format(base, epoch, ext), net)
 
     trainer = CfNadeTrainer(net, optimizer, args.iter, args.batch_size, device_id, ordinal_weight=args.ordinal_weight)
-    trainer.fit(train_x, train_r, test_x, test_r, callback=progress_func)
+    trainer.fit(train_x, train_r, valid_x, valid_r, test_x, test_r, callback=progress_func)
     serializers.save_npz(args.output, net)
+
+    print('final test accuracy={}'.format(progress_state['test_accuracy']))

@@ -35,7 +35,6 @@ def ordinal_loss(y, mask):
     xp = cuda.get_array_module(y.data)
     volatile = y.volatile
     b, c, n = y.data.shape
-
     max_y = F.broadcast_to(F.max(y, axis=1, keepdims=True), y.data.shape)
     y = y - max_y
     sum_y = F.broadcast_to(F.expand_dims(F.sum(y, axis=1), 1), y.data.shape)
@@ -49,7 +48,7 @@ def ordinal_loss(y, mask):
     h2 = F.convolution_2d(h, w2)
     h2 = F.convolution_2d(F.log(h2), w2)
     h = F.reshape(h1 + h2, (b, c, n))
-    return F.sum((h - sum_y - y) * mask)
+    return F.sum((h - sum_y - y) * mask) / b
 
 class CfNadeTrainer(object):
 
@@ -66,17 +65,18 @@ class CfNadeTrainer(object):
         else:
             self.xp = np
 
-    def fit(self, x, r, test_x, test_r, callback=None):
+    def fit(self, x, r, valid_x, valid_r, test_x, test_r, callback=None):
         if self.device_id >= 0:
             with cuda.cupy.cuda.Device(self.device_id):
-                return self.__fit(x, r, test_x, test_r, callback)
+                return self.__fit(x, r, valid_x, valid_r, test_x, test_r, callback)
         else:
-            return self.__fit(x, r, test_x, test_r, callback)
+            return self.__fit(x, r, valid_x, valid_r, test_x, test_r, callback)
 
-    def __fit(self, x, r, test_x, test_r, callback):
+    def __fit(self, x, r, valid_x, valid_r, test_x, test_r, callback):
         batch_size = self.batch_size
         train_length = len(x)
         r_size = np.sum(x >= 0, axis=1).astype(np.int32)
+        valid_r_size = np.sum(valid_x >= 0, axis=1).astype(np.int32)
         test_r_size = np.sum(test_x >= 0, axis=1).astype(np.int32)
         r_max_width = np.max(r_size)
         batch_x1 = np.full((batch_size, r_max_width - 1), -1, dtype=np.int32)
@@ -121,6 +121,21 @@ class CfNadeTrainer(object):
                 train_acc += float(acc.data)
                 train_valid_num += batch_valid_num
 
+            valid_loss = 0
+            valid_acc = 0
+            valid_valid_num = 0
+            for i in six.moves.range(0, train_length, batch_size):
+                batch_valid_num = np.sum(valid_r[i:i + batch_size] >= 0)
+                batch_x = make_rating_matrix(x[i:i + batch_size], r[i:i + batch_size], self.net.item_num, self.net.rating_num)
+                batch_t = make_target(valid_x[i:i + batch_size], valid_r[i:i + batch_size], self.net.item_num)
+                batch_r_size = r_size[i:i + batch_size].astype(np.float32)
+                batch_valid_r_size = valid_r_size[i:i + batch_size].astype(np.float32)
+                weight = (batch_r_size + batch_valid_r_size) / (batch_valid_r_size + 1e-6)
+                loss, acc = self.__forward(batch_x, batch_t, weight, train=False)
+                valid_loss += float(loss.data) * batch_valid_num
+                valid_acc += float(acc.data)
+                valid_valid_num += batch_valid_num
+
             test_loss = 0
             test_acc = 0
             test_valid_num = 0
@@ -136,7 +151,7 @@ class CfNadeTrainer(object):
                 test_acc += float(acc.data)
                 test_valid_num += batch_valid_num
 
-            callback(epoch, train_loss / train_valid_num, (train_acc / train_valid_num) ** 0.5, test_loss / test_valid_num, (test_acc / test_valid_num) ** 0.5)
+            callback(epoch, train_loss / train_valid_num, (train_acc / train_valid_num) ** 0.5, valid_loss / valid_valid_num, (valid_acc / valid_valid_num) ** 0.5, test_loss / test_valid_num, (test_acc / test_valid_num) ** 0.5)
 
     def __forward(self, batch_x, batch_t, weight, train=True):
         xp = self.xp
@@ -145,13 +160,13 @@ class CfNadeTrainer(object):
         y = self.net(x, train=train)
 
         b, c, n = y.data.shape
-        mask = Variable(xp.asarray(np.tile(weight.reshape(-1, 1, 1), (1, c, n)) * loss_mask(batch_t, self.net.rating_num)), volatile=not train)
+        mask = Variable(xp.asarray(np.broadcast_to(weight.reshape(-1, 1, 1), (b, c, n)) * loss_mask(batch_t, self.net.rating_num)), volatile=not train)
         if self.ordinal_weight == 0:
-            loss = F.sum(-F.log_softmax(y) * mask)
+            loss = F.sum(-F.log_softmax(y) * mask) / b
         elif self.ordinal_weight == 1:
             loss = ordinal_loss(y, mask)
         else:
-            loss = (1 - self.ordinal_weight) * F.sum(-F.log_softmax(y) * mask) + self.ordinal_weight * ordinal_loss(y, mask)
+            loss = (1 - self.ordinal_weight) * F.sum(-F.log_softmax(y) * mask) / b + self.ordinal_weight * ordinal_loss(y, mask)
 
         acc = self.__accuracy(y, t)
         return loss, acc
