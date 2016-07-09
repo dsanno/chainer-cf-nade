@@ -52,13 +52,14 @@ def ordinal_loss(y, mask):
 
 class CfNadeTrainer(object):
 
-    def __init__(self, net, optimizer, epoch_num=100, batch_size=512, device_id=-1, ordinal_weight=1):
+    def __init__(self, net, optimizer, epoch_num=100, batch_size=512, device_id=-1, ordinal_weight=1, rating_unit=1):
         self.net = net
         self.optimizer = optimizer
         self.epoch_num = epoch_num
         self.batch_size = batch_size
         self.device_id = device_id
         self.ordinal_weight = ordinal_weight
+        self.rating_unit = rating_unit
         if device_id >= 0:
             self.xp = cuda.cupy
             self.net.to_gpu(device_id)
@@ -180,4 +181,4 @@ class CfNadeTrainer(object):
         c = Variable(t.data >= 0, volatile=True)
         t = Variable(t.data.astype(np.float32), volatile=True)
         r = F.where(c, r, t)
-        return F.sum((r - t) ** 2)
+        return F.sum(((r - t) * self.rating_unit) ** 2)

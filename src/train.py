@@ -36,21 +36,29 @@ if __name__ == '__main__':
         cuda.check_cuda_available()
 
     with open(args.data_file, 'rb') as f:
+        dataset = pickle.load(f)
+        train_data = dataset['train_data']
+        test_data = dataset['test_data']
         if args.item_base:
-            (item_num, user_num, train_data, test_data) = pickle.load(f)
+            user_num = dataset['item_num']
+            item_num = dataset['user_num']
         else:
-            (user_num, item_num, train_data, test_data) = pickle.load(f)
-    net = CfNade(item_num, layer_num=args.layer_num, encoding_size=args.encoding_size)
-    optimizer = optimizers.Adam(args.lr)
-    optimizer.setup(net)
-    optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
-
+            user_num = dataset['user_num']
+            item_num = dataset['item_num']
+        rating_unit = dataset['rating_unit']
     if args.item_base:
         train_items, train_users, train_ratings, train_timestamps = train_data
     else:
         train_users, train_items, train_ratings, train_timestamps = train_data
 
+    rating_num = int(np.max(train_ratings) + 1)
+    net = CfNade(item_num, layer_num=args.layer_num, rating_num=rating_num, encoding_size=args.encoding_size)
+    optimizer = optimizers.Adam(args.lr)
+    optimizer.setup(net)
+    optimizer.add_hook(chainer.optimizer.WeightDecay(args.weight_decay))
+
     # split train/valid/test data
+    print 'preprocessing...'
     data_length = len(train_users)
     order = np.random.permutation(data_length)
     if test_data is None:
@@ -76,32 +84,41 @@ if __name__ == '__main__':
     train_items = train_items[train_order]
     train_ratings = train_ratings[train_order]
 
+    print 'preprocessing train data...'
     column_num = np.max(np.bincount(train_users))
     train_x = np.full((user_num, column_num), -1, dtype=np.int32)
     train_r = np.full((user_num, column_num), -1, dtype=np.int32)
-    for i in six.moves.range(user_num):
-        index = (train_users == i)
-        length = np.sum(index)
-        train_x[i,:length] = train_items[index]
-        train_r[i,:length] = train_ratings[index]
+    item_count = np.zeros((user_num,), dtype=np.int32)
+    for i in six.moves.range(len(train_users)):
+        u = train_users[i]
+        j = item_count[u]
+        train_x[u, j] = train_items[i]
+        train_r[u, j] = train_ratings[i]
+        item_count[u] += 1
 
+    print 'preprocessing valid data...'
     column_num = np.max(np.bincount(valid_users))
     valid_x = np.full((user_num, column_num), -1, dtype=np.int32)
     valid_r = np.full((user_num, column_num), -1, dtype=np.int32)
-    for i in six.moves.range(user_num):
-        index = (valid_users == i)
-        length = np.sum(index)
-        valid_x[i,:length] = valid_items[index]
-        valid_r[i,:length] = valid_ratings[index]
+    item_count = np.zeros((user_num,), dtype=np.int32)
+    for i in six.moves.range(len(valid_users)):
+        u = valid_users[i]
+        j = item_count[u]
+        valid_x[u, j] = valid_items[i]
+        valid_r[u, j] = valid_ratings[i]
+        item_count[u] += 1
 
+    print 'preprocessing test data...'
     column_num = np.max(np.bincount(test_users))
     test_x = np.full((user_num, column_num), -1, dtype=np.int32)
     test_r = np.full((user_num, column_num), -1, dtype=np.int32)
-    for i in six.moves.range(user_num):
-        index = (test_users == i)
-        length = np.sum(index)
-        test_x[i,:length] = test_items[index]
-        test_r[i,:length] = test_ratings[index]
+    item_count = np.zeros((user_num,), dtype=np.int32)
+    for i in six.moves.range(len(test_users)):
+        u = test_users[i]
+        j = item_count[u]
+        test_x[u, j] = test_items[i]
+        test_r[u, j] = test_ratings[i]
+        item_count[u] += 1
 
     progress_state = {'valid_accuracy': 100, 'test_accuracy': 100}
     def progress_func(epoch, loss, accuracy, valid_loss, valid_accuracy, test_loss, test_accuracy):
@@ -119,7 +136,8 @@ if __name__ == '__main__':
             base, ext = os.path.splitext(args.output)
             serializers.save_npz('{0}_{1:04d}{2}'.format(base, epoch, ext), net)
 
-    trainer = CfNadeTrainer(net, optimizer, args.iter, args.batch_size, device_id, ordinal_weight=args.ordinal_weight)
+    print 'start training'
+    trainer = CfNadeTrainer(net, optimizer, args.iter, args.batch_size, device_id, ordinal_weight=args.ordinal_weight, rating_unit=rating_unit)
     trainer.fit(train_x, train_r, valid_x, valid_r, test_x, test_r, callback=progress_func)
     serializers.save_npz(args.output, net)
 

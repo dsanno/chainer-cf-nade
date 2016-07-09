@@ -15,13 +15,13 @@ Download MovieLens 1M/10M dataset from http://grouplens.org/datasets/movielens/ 
 ## Convert dataset
 
 ```
-$ python src/convert_dataset.py dataset/ml-1m/ratings.dat dataset/ml-1m/ratings.pkl
+$ python src/convert_dataset.py dataset/ml-1m/ratings.dat dataset/ml-1m/movies.dat dataset/ml-1m/ratings.pkl
 ```
 
 For 10M dataset you have to specify minimum rating value and rating unit .
 
 ```
-$ python src/convert_dataset.py -m 0.5 -u 0.5 dataset/ml-10m/ratings.dat dataset/ml-10m/ratings.pkl
+$ python src/convert_dataset.py -m 0.5 -u 0.5 dataset/ml-10M100K/ratings.dat dataset/ml-10M100K/movies.dat dataset/ml-10M100K/ratings.pkl
 ```
 
 ## Train
