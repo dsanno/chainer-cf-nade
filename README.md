@@ -26,8 +26,16 @@ $ python src/convert_dataset.py -m 0.5 -u 0.5 dataset/ml-10M100K/ratings.dat dat
 
 ## Train
 
+For MovieLens 1M dataset:
+
 ```
-$ python src\train.py -g -1 -o model\test.model -d dataset\ml-1m\dataset.pkl -b 512 --lr 0.001
+$ python src/train.py -g 0 -o model/test.model -d dataset/ml-1m/dataset.pkl -b 512 --lr 0.001
+```
+
+For MovieLens 10M dataset:
+
+```
+$ python src/train.py -g 0 -o model/test.model -d dataset/ml-1M100K/dataset.pkl -b 512 -e 50 --lr 0.0005
 ```
 
 Optiions:
