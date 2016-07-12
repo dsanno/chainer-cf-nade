@@ -25,6 +25,8 @@ if __name__ == '__main__':
     parser.add_argument('--iter',                default=200,   type=int, help='number of iteration')
     parser.add_argument('--save_iter',           default=10,   type=int, help='number of iteration to save model')
     parser.add_argument('--lr',                  default=1e-3,  type=float, help='learning rate')
+    parser.add_argument('--lr_decay_iter',       default=60,    type=int, help='number of iteration of learning rate decay')
+    parser.add_argument('--lr_decay_ratio',      default=0.25,  type=float, help='ratio of learning rate after decay')
     parser.add_argument('--weight_decay',        default=0.015, type=float, help='weight decay')
     parser.add_argument('--item_base',           action='store_true', help='item-base prediction, default is user-base')
     parser.add_argument('--random_seed',         default=1,     type=int, help="random seed")
@@ -62,11 +64,11 @@ if __name__ == '__main__':
     data_length = len(train_users)
     order = np.random.permutation(data_length)
     if test_data is None:
-        train_num = int(data_length * 0.85)
-        valid_num = int(data_length * 0.05)
+        train_num = int(data_length * 0.9 * 0.995)
+        valid_num = int(data_length * 0.9 * 0.005)
         train_order, valid_order, test_order = np.split(order, [train_num, train_num + valid_num])
     else:
-        train_num = int(data_length * 0.95)
+        train_num = int(data_length * 0.995)
         train_order, valid_order = np.split(order, [train_num])
         test_order = None
         if args.item_base:
@@ -135,6 +137,8 @@ if __name__ == '__main__':
         if epoch % args.save_iter == 0:
             base, ext = os.path.splitext(args.output)
             serializers.save_npz('{0}_{1:04d}{2}'.format(base, epoch, ext), net)
+        if args.lr_decay_iter > 0 and epoch % args.lr_decay_iter == 0:
+            optimizer.alpha *= args.lr_decay_ratio
 
     print 'start training'
     trainer = CfNadeTrainer(net, optimizer, args.iter, args.batch_size, device_id, ordinal_weight=args.ordinal_weight, rating_unit=rating_unit)

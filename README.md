@@ -58,6 +58,10 @@ Iteration of training (default: 200)
 Iteration of saving model (default: 10)
 * --lr `<float>`: Optional  
 Learning rate: alpha of Adam (default: 1e-3)
+* --lr_decay_iter `<int>`: Optional  
+Iteration interval of learning rate decay. (default: 60)
+* --lr_decay_ratio `<int>`: Optional  
+Ratio of learning rate after decay. (default: 0.25)
 * --weight_decay `float`: Optional  
 Weight decay (default: 0.015)
 * --random_seed `<int>`: Optional  
