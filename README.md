@@ -35,7 +35,7 @@ $ python src/train.py -g 0 -o model/test.model -d dataset/ml-1m/dataset.pkl -b 5
 For MovieLens 10M dataset:
 
 ```
-$ python src/train.py -g 0 -o model/test.model -d dataset/ml-1M100K/dataset.pkl -b 512 -e 50 --lr 0.0005
+$ python src/train.py -g 0 -o model/test.model -d dataset/ml-10M100K/dataset.pkl -b 512 -e 50 --lr 0.0005
 ```
 
 Optiions:
